@@ -1,0 +1,29 @@
+Floorplan Studio — Setup on new machine
+
+1. Unzip:
+   unzip floorplan-studio.zip
+   cd floorplan-studio   # or wherever you unzipped, if zip contains files at root -> they are at current dir
+
+2. Frontend:
+   npm install
+   npm run dev        # http://localhost:5173
+   npm run build      # production
+   npm run test       # 15 tests
+
+3. Backend:
+   pip install -r backend/requirements.txt
+   # from project root (zip root):
+   uvicorn app.main:app --reload               # http://localhost:8000  (uses symlink backend/app -> app)
+   # OR
+   cd backend && uvicorn app.main:app --reload
+   # OR
+   uvicorn app.main:app --app-dir backend --reload
+
+   Health: http://localhost:8000/health
+   Env: DATABASE_URL=postgresql://...  (falls back to sqlite ./floorplan.db)
+
+4. Notes:
+   - If `app` symlink missing on Windows: create folder junction or copy backend/app to ./app
+   - Backend CORS allows frontend dev server via vite proxy (/projects, /ai)
+   - Data persists to localStorage + sqlite/postgres
+

@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { scrollbar-width: thin; scrollbar-color: #d1d1d1 transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #d1d1d1; border-radius: 999px; }
+html, body, #root { height: 100%; overflow: hidden; }
+body { @apply bg-[#0f0f0f] text-zinc-100 antialiased; font-family: Inter, system-ui, sans-serif; }
