@@ -223,6 +223,3 @@ Covers:
 
 Warm white canvas `#fdfbf7`, charcoal UI `#171717`, subtle gray borders, precise architectural line work, no glassmorphism/neon.
 
-## License
-
-MIT – foundation for an AI-native architectural platform.
