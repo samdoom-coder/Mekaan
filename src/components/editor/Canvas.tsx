@@ -91,6 +91,8 @@ export default function Canvas() {
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
       if (e.code === "Space" && !e.repeat) {
         e.preventDefault();
         setSpaceHeld(true);

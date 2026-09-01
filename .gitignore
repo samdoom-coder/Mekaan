@@ -23,5 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
-floorplan-studio.zip
+#md file and txt file 
 floor_planner.txt
+Phase 2.md
+
+.env

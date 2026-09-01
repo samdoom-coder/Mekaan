@@ -8,6 +8,7 @@ interface ProjectState {
   currentProjectId: string | null;
   setProjects: (p: ProjectSummary[]) => void;
   createProject: (args: { name: string; propertyType: PropertyType; units: UnitSystem; width: number; depth: number; floors: number; plotShape?: import("../types/design").PlotShape }) => ProjectSummary;
+  createProjectWithDesign: (args: { name: string; design: Design; propertyType?: PropertyType; units?: UnitSystem }) => ProjectSummary;
   deleteProject: (id: string) => void;
   updateProject: (id: string, patch: Partial<ProjectSummary>) => void;
   setCurrent: (id: string | null) => void;
@@ -62,6 +63,32 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   currentProjectId: null,
   setProjects: (p) => set({ projects: p }),
+  createProjectWithDesign: ({ name, design, propertyType, units }) => {
+    const id = uid();
+    const now = new Date().toISOString();
+    // ensure design has correct metadata
+    const finalDesign = { ...design, id, name, propertyType: propertyType || design.propertyType, units: units || design.units, metadata: { createdAt: now, updatedAt: now } } as Design;
+    finalDesign.floors = finalDesign.floors.map((f) => ({ ...f, width: design.site.width, height: design.site.depth }));
+    const proj: ProjectSummary = {
+      id,
+      name,
+      propertyType: (propertyType as any) || design.propertyType || "residential",
+      units: (units as any) || design.units || "feet",
+      site: { width: design.site.width, depth: design.site.depth },
+      floors: design.floors.length,
+      updatedAt: now,
+      createdAt: now,
+      design: finalDesign,
+    };
+    set({ projects: [proj, ...get().projects], currentProjectId: id });
+    localStorage.setItem("floorplan_projects", JSON.stringify(get().projects));
+    fetch("/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, name, propertyType: proj.propertyType, units: proj.units, plotWidth: proj.site.width, plotDepth: proj.site.depth, floors: proj.floors, design: finalDesign }),
+    }).catch(() => {});
+    return proj;
+  },
   createProject: ({ name, propertyType, units, width, depth, floors, plotShape }) => {
     const id = uid();
     const design = makeDesign(name, units, width, depth, propertyType, plotShape);

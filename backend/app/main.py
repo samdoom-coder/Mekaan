@@ -3,6 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import projects, design, ai
 from app.core.database import init_db
 
+# Load .env for AI provider config (supports GMI Cloud, OpenRouter, etc.)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    load_dotenv("backend/.env")
+except Exception:
+    pass
+
 app = FastAPI(title="Floorplan Studio API", version="1.0.0")
 
 app.add_middleware(
