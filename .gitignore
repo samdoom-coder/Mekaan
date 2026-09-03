@@ -22,9 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-#md file and txt file 
+FUTURE_PLAN.md
 floor_planner.txt
 Phase 2.md
-
 .env

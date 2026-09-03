@@ -3,6 +3,7 @@ import { useDesignStore } from "../../stores/designStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { useUIStore } from "../../stores/uiStore";
 import { useHistoryStore } from "../../stores/historyStore";
+import { useGenerationStore } from "../../features/generation/generationStore";
 
 export default function Header() {
   const designStore = useDesignStore();
@@ -104,6 +105,21 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => {
+            const d = useDesignStore.getState().design;
+            if (d) {
+              const site = d.site;
+              const unit = d.units === "meters" ? "m" : d.units === "centimeters" ? "cm" : d.units === "inches" ? "in" : "ft";
+              useGenerationStore.getState().updateRequest({ plot: { width: site.width, depth: site.depth, unit }, projectId: d.id });
+            }
+            useGenerationStore.getState().setOpen(true);
+          }}
+          title="Generate a complete floor plan from an architectural brief"
+          className="hidden sm:flex items-center gap-1.5 bg-white text-zinc-900 px-3.5 py-1.5 rounded-full text-xs font-semibold hover:bg-zinc-100"
+        >
+          <Sparkles size={14} /> Generate with AI
+        </button>
         <button onClick={()=>ui.toggleVersionHistory()} title="Version History" className="hidden sm:flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-full text-xs font-medium hover:bg-zinc-800">
           <History size={14} /> Versions
         </button>

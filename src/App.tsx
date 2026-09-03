@@ -6,6 +6,7 @@ import PropertiesPanel from "./components/properties/PropertiesPanel";
 import StatusBar from "./components/common/StatusBar";
 import AICommandBar from "./components/ai/AICommandBar";
 import ProjectsView from "./components/projects/ProjectsView";
+import GenerationWizard from "./features/generation/components/GenerationWizard";
 import { useUIStore } from "./stores/uiStore";
 import { useDesignStore } from "./stores/designStore";
 import { useProjectStore, hydrateProjects } from "./stores/projectStore";
@@ -149,6 +150,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Phase 3: Generate with AI wizard (modal, does not replace editor) */}
+      <GenerationWizard />
 
       {/* Version history modal */}
       {ui.showVersionHistory && (

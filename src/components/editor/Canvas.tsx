@@ -5,11 +5,17 @@ import { useSelectionStore } from "../../stores/selectionStore";
 import { useUIStore } from "../../stores/uiStore";
 import FloorRenderer from "../../renderers/svg/FloorRenderer";
 import { screenToWorld } from "../../engine/coordinates";
-import { snapPoint } from "../../engine/snapping";
+import { snapPoint, snapRectToTargets, snapEdgeToTargets, collectSnapTargets } from "../../engine/snapping";
 import { pointDistance, roomsOverlap } from "../../engine/geometry";
 import { validateRoomPlacement } from "../../engine/constraints";
 import type { Room, Wall, DesignObject, Point } from "../../types/design";
 import { ROOM_TYPE_LABELS } from "../../utils/demoData";
+
+/** World-unit threshold for edge-to-edge snapping (clamped so it never feels jumpy). */
+function objectSnapThreshold(gridSize: number): number {
+  const g = gridSize || 1;
+  return Math.max(0.5, Math.min(1.25, g));
+}
 
 const Grid = memo(function Grid({ viewport }: { viewport: any }) {
   if (!viewport.showGrid) return null;
@@ -424,6 +430,30 @@ export default function Canvas() {
           nw = Math.max(1, se.x - nx);
           nh = Math.max(1, se.y - ny);
         }
+        // edge-to-edge snap of the dragged edges to neighbouring rooms (any size)
+        {
+          const t = objectSnapThreshold(viewport.gridSize);
+          const targets = collectSnapTargets(
+            floor.rooms.filter(r => r.id !== resizing.id),
+            { width: floor.width, height: floor.height },
+          );
+          if (h === "w" || h === "nw" || h === "sw") {
+            const s = snapEdgeToTargets(nx, targets.vertical, t);
+            nw += nx - s.value; nx = s.value;
+          }
+          if (h === "e" || h === "ne" || h === "se") {
+            const s = snapEdgeToTargets(nx + nw, targets.vertical, t);
+            nw = s.value - nx;
+          }
+          if (h === "n" || h === "ne" || h === "nw") {
+            const s = snapEdgeToTargets(ny, targets.horizontal, t);
+            nh += ny - s.value; ny = s.value;
+          }
+          if (h === "s" || h === "se" || h === "sw") {
+            const s = snapEdgeToTargets(ny + nh, targets.horizontal, t);
+            nh = s.value - ny;
+          }
+        }
         nw = Math.max(1, nw); nh = Math.max(1, nh);
         ds.liveUpdateRoom(floor.id, resizing.id, { x: nx, y: ny, width: nw, height: nh });
         return;
@@ -479,6 +509,27 @@ export default function Canvas() {
           const snapped = snapPoint({ x, y }, viewport.gridSize);
           nx = snapped.x; ny = snapped.y;
         }
+        // edge-to-edge snap to neighbouring rooms (works for small rooms too)
+        {
+          const t = objectSnapThreshold(viewport.gridSize);
+          if (pendingDrag.type === "room") {
+            const self = floor.rooms.find(r => r.id === pendingDrag.id);
+            const targets = collectSnapTargets(
+              floor.rooms.filter(r => r.id !== pendingDrag.id),
+              { width: floor.width, height: floor.height },
+            );
+            const s = snapRectToTargets({ x: nx, y: ny, width: self?.width ?? 10, height: self?.height ?? 10 }, targets, t);
+            nx = s.x; ny = s.y;
+          } else {
+            const self = floor.objects.find(o => o.id === pendingDrag.id);
+            const targets = collectSnapTargets(
+              [...floor.rooms, ...floor.objects.filter(o => o.id !== pendingDrag.id)],
+              { width: floor.width, height: floor.height },
+            );
+            const s = snapRectToTargets({ x: nx, y: ny, width: self?.width ?? 2, height: self?.height ?? 2 }, targets, t);
+            nx = s.x; ny = s.y;
+          }
+        }
         if (pendingDrag.type === "room") ds.liveUpdateRoom(floor.id, pendingDrag.id, { x: nx, y: ny });
         else ds.liveUpdateObject(floor.id, pendingDrag.id, { x: nx, y: ny });
         return;
@@ -496,6 +547,27 @@ export default function Canvas() {
       if (viewport.snapToGrid) {
         const s = snapPoint({ x, y }, viewport.gridSize);
         x = s.x; y = s.y;
+      }
+      // edge-to-edge snap to neighbouring rooms (works for small rooms too)
+      {
+        const t = objectSnapThreshold(viewport.gridSize);
+        if (dragging.type === "room") {
+          const self = floor.rooms.find(r => r.id === dragging.id);
+          const targets = collectSnapTargets(
+            floor.rooms.filter(r => r.id !== dragging.id),
+            { width: floor.width, height: floor.height },
+          );
+          const s = snapRectToTargets({ x, y, width: self?.width ?? 10, height: self?.height ?? 10 }, targets, t);
+          x = s.x; y = s.y;
+        } else if (dragging.type === "object") {
+          const self = floor.objects.find(o => o.id === dragging.id);
+          const targets = collectSnapTargets(
+            [...floor.rooms, ...floor.objects.filter(o => o.id !== dragging.id)],
+            { width: floor.width, height: floor.height },
+          );
+          const s = snapRectToTargets({ x, y, width: self?.width ?? 2, height: self?.height ?? 2 }, targets, t);
+          x = s.x; y = s.y;
+        }
       }
       if (dragging.type === "room") {
         ds.liveUpdateRoom(floor.id, dragging.id, { x, y });

@@ -11,6 +11,7 @@ from app.ai.context import build_design_context
 from app.ai.validator import validate_commands
 from app.ai.resolver import resolve_entities_in_commands
 from app.ai.schemas import AICommandResponse
+from app.ai.generation.schemas import DesignGenerationRequest as Phase3Request
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -25,9 +26,10 @@ class AICommandsRequest(BaseModel):
     design: Optional[Dict[str, Any]] = None
     history: Optional[List[Dict[str, str]]] = None
 
-# Legacy mock endpoint kept for compatibility
-@router.post("/generate")
-def generate(req: GenerateRequest):
+# Legacy mock endpoint kept for compatibility (renamed to avoid colliding
+# with Phase 3 POST /ai/generate which takes a DesignGenerationRequest).
+@router.post("/generate-legacy")
+def generate_legacy(req: GenerateRequest):
     prompt = req.prompt.lower()
     commands = []
     if "kitchen" in prompt and "larger" in prompt:
@@ -44,7 +46,7 @@ def generate(req: GenerateRequest):
 
 @router.post("/command")
 def command(req: GenerateRequest):
-    return generate(req)
+    return generate_legacy(req)
 
 class GenerateFloorplanRequest(BaseModel):
     name: Optional[str] = "AI House"
@@ -252,3 +254,24 @@ async def ai_commands(req: AICommandsRequest, db: Session = Depends(get_db)):
         "errors": all_errors if all_errors else None,
         "context": context,
     }
+
+
+@router.post("/generate")
+async def ai_generate(req: Phase3Request):
+    """Phase 3: POST /api/ai/generate — full floor-plan generation.
+
+    Pipeline: normalize -> AI planning (GenerationPlan) -> deterministic
+    layout planner -> constraint validation -> repair -> proposal.
+    Returns strongly-typed proposal with commands + preview design.
+    The AI never emits geometry directly; Pydantic validates everything.
+    """
+    from app.ai.generation.generator import generate_proposal
+
+    try:
+        result = await generate_proposal(req)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    if not result.get("success"):
+        # 422 with structured suggestions (spec #30) — still JSON, not silent
+        return result
+    return result

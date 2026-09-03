@@ -44,6 +44,9 @@ interface DesignState {
   commitLive: () => void;
   updateFloor: (floorId: string, patch: Partial<Floor>) => void;
   setFloorShape: (floorId: string, shape: import("../types/design").PlotShape) => void;
+  beginTransaction: () => void;
+  endTransaction: (label?: string) => void;
+  applyGeneratedDesign: (generated: Design) => void;
 }
 
 function clone<T>(v: T): T {
@@ -438,6 +441,47 @@ export const useDesignStore = create<DesignState>((set, get) => ({
     }
     next.metadata.updatedAt = new Date().toISOString();
     set({ design: next, past: [...past, clone(design)], future: [] });
+  },
+
+  // Grouped transaction support (Phase 3 #21): many commands, one undo entry.
+  beginTransaction: () => {
+    const { design } = get();
+    if (!design) return;
+    (get() as unknown as { _txSnapshot?: Design })._txSnapshot = clone(design);
+  },
+
+  endTransaction: () => {
+    const st = get() as unknown as { _txSnapshot?: Design };
+    const snap = st._txSnapshot;
+    if (!snap) return;
+    const { design, past } = get();
+    if (!design) return;
+    // single history entry for the whole transaction
+    set({ past: [...past, snap], future: [] });
+    try { delete (get() as unknown as { _txSnapshot?: Design })._txSnapshot; } catch { /* noop */ }
+  },
+
+  applyGeneratedDesign: (generated) => {
+    const { design, past } = get();
+    const snapshot = design ? clone(design) : null;
+    const next = clone(generated);
+    // preserve identity of current project design where sensible
+    if (design) {
+      next.id = design.id;
+      next.metadata = {
+        createdAt: design.metadata.createdAt,
+        updatedAt: new Date().toISOString(),
+      };
+      next.version = (design.version || 1) + 1;
+      // keep floor id stable so selection/viewport keep working
+      if (design.floors[0] && next.floors[0]) {
+        // keep existing floor id if generated uses the default
+        if (next.floors[0].id === "floor_ground") next.floors[0].id = design.floors[0].id;
+      }
+    } else {
+      next.metadata = { createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    }
+    set({ design: next, past: snapshot ? [...past, snapshot] : past, future: [] });
   },
 }));
 
